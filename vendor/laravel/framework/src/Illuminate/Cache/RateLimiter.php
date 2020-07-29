@@ -2,8 +2,8 @@
 
 namespace Illuminate\Cache;
 
-use Illuminate\Contracts\Cache\Repository as Cache;
 use Illuminate\Support\InteractsWithTime;
+use Illuminate\Contracts\Cache\Repository as Cache;
 
 class RateLimiter
 {
@@ -32,9 +32,10 @@ class RateLimiter
      *
      * @param  string  $key
      * @param  int  $maxAttempts
+     * @param  float|int  $decayMinutes
      * @return bool
      */
-    public function tooManyAttempts($key, $maxAttempts)
+    public function tooManyAttempts($key, $maxAttempts, $decayMinutes = 1)
     {
         if ($this->attempts($key) >= $maxAttempts) {
             if ($this->cache->has($key.':timer')) {
@@ -51,21 +52,21 @@ class RateLimiter
      * Increment the counter for a given key for a given decay time.
      *
      * @param  string  $key
-     * @param  int  $decaySeconds
+     * @param  float|int  $decayMinutes
      * @return int
      */
-    public function hit($key, $decaySeconds = 60)
+    public function hit($key, $decayMinutes = 1)
     {
         $this->cache->add(
-            $key.':timer', $this->availableAt($decaySeconds), $decaySeconds
+            $key.':timer', $this->availableAt($decayMinutes * 60), $decayMinutes
         );
 
-        $added = $this->cache->add($key, 0, $decaySeconds);
+        $added = $this->cache->add($key, 0, $decayMinutes);
 
         $hits = (int) $this->cache->increment($key);
 
         if (! $added && $hits == 1) {
-            $this->cache->put($key, 1, $decaySeconds);
+            $this->cache->put($key, 1, $decayMinutes);
         }
 
         return $hits;

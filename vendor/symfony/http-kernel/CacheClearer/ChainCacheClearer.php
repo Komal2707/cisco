@@ -16,13 +16,18 @@ namespace Symfony\Component\HttpKernel\CacheClearer;
  *
  * @author Dustin Dobervich <ddobervich@gmail.com>
  *
- * @final
+ * @final since version 3.4
  */
 class ChainCacheClearer implements CacheClearerInterface
 {
-    private $clearers;
+    protected $clearers;
 
-    public function __construct(iterable $clearers = [])
+    /**
+     * Constructs a new instance of ChainCacheClearer.
+     *
+     * @param array $clearers The initial clearers
+     */
+    public function __construct($clearers = [])
     {
         $this->clearers = $clearers;
     }
@@ -30,10 +35,22 @@ class ChainCacheClearer implements CacheClearerInterface
     /**
      * {@inheritdoc}
      */
-    public function clear(string $cacheDir)
+    public function clear($cacheDir)
     {
         foreach ($this->clearers as $clearer) {
             $clearer->clear($cacheDir);
         }
+    }
+
+    /**
+     * Adds a cache clearer to the aggregate.
+     *
+     * @deprecated since version 3.4, to be removed in 4.0, inject the list of clearers as a constructor argument instead.
+     */
+    public function add(CacheClearerInterface $clearer)
+    {
+        @trigger_error(sprintf('The "%s()" method is deprecated since Symfony 3.4 and will be removed in 4.0, inject the list of clearers as a constructor argument instead.', __METHOD__), E_USER_DEPRECATED);
+
+        $this->clearers[] = $clearer;
     }
 }

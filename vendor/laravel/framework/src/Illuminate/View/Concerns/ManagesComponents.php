@@ -2,11 +2,7 @@
 
 namespace Illuminate\View\Concerns;
 
-use Closure;
-use Illuminate\Support\Arr;
 use Illuminate\Support\HtmlString;
-use Illuminate\View\View;
-use InvalidArgumentException;
 
 trait ManagesComponents
 {
@@ -41,35 +37,19 @@ trait ManagesComponents
     /**
      * Start a component rendering process.
      *
-     * @param  \Illuminate\View\View|\Closure|string  $view
+     * @param  string  $name
      * @param  array  $data
      * @return void
      */
-    public function startComponent($view, array $data = [])
+    public function startComponent($name, array $data = [])
     {
         if (ob_start()) {
-            $this->componentStack[] = $view;
+            $this->componentStack[] = $name;
 
             $this->componentData[$this->currentComponent()] = $data;
 
             $this->slots[$this->currentComponent()] = [];
         }
-    }
-
-    /**
-     * Get the first view that actually exists from the given list, and start a component.
-     *
-     * @param  array  $names
-     * @param  array  $data
-     * @return void
-     */
-    public function startComponentFirst(array $names, array $data = [])
-    {
-        $name = Arr::first($names, function ($item) {
-            return $this->exists($item);
-        });
-
-        $this->startComponent($name, $data);
     }
 
     /**
@@ -79,27 +59,18 @@ trait ManagesComponents
      */
     public function renderComponent()
     {
-        $view = array_pop($this->componentStack);
+        $name = array_pop($this->componentStack);
 
-        $data = $this->componentData();
-
-        if ($view instanceof Closure) {
-            $view = $view($data);
-        }
-
-        if ($view instanceof View) {
-            return $view->with($data)->render();
-        } else {
-            return $this->make($view, $data)->render();
-        }
+        return $this->make($name, $this->componentData($name))->render();
     }
 
     /**
      * Get the data for the given component.
      *
+     * @param  string  $name
      * @return array
      */
-    protected function componentData()
+    protected function componentData($name)
     {
         return array_merge(
             $this->componentData[count($this->componentStack)],
@@ -117,14 +88,14 @@ trait ManagesComponents
      */
     public function slot($name, $content = null)
     {
-        if (func_num_args() > 2) {
-            throw new InvalidArgumentException('You passed too many arguments to the ['.$name.'] slot.');
-        } elseif (func_num_args() === 2) {
+        if (count(func_get_args()) == 2) {
             $this->slots[$this->currentComponent()][$name] = $content;
-        } elseif (ob_start()) {
-            $this->slots[$this->currentComponent()][$name] = '';
+        } else {
+            if (ob_start()) {
+                $this->slots[$this->currentComponent()][$name] = '';
 
-            $this->slotStack[$this->currentComponent()][] = $name;
+                $this->slotStack[$this->currentComponent()][] = $name;
+            }
         }
     }
 

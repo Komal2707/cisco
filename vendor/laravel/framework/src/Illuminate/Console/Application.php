@@ -3,25 +3,20 @@
 namespace Illuminate\Console;
 
 use Closure;
-use Illuminate\Console\Events\ArtisanStarting;
-use Illuminate\Console\Events\CommandFinished;
-use Illuminate\Console\Events\CommandStarting;
-use Illuminate\Contracts\Console\Application as ApplicationContract;
-use Illuminate\Contracts\Container\Container;
-use Illuminate\Contracts\Events\Dispatcher;
 use Illuminate\Support\ProcessUtils;
-use Symfony\Component\Console\Application as SymfonyApplication;
-use Symfony\Component\Console\Command\Command as SymfonyCommand;
-use Symfony\Component\Console\Exception\CommandNotFoundException;
+use Illuminate\Contracts\Events\Dispatcher;
+use Illuminate\Contracts\Container\Container;
 use Symfony\Component\Console\Input\ArgvInput;
 use Symfony\Component\Console\Input\ArrayInput;
-use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
-use Symfony\Component\Console\Input\StringInput;
-use Symfony\Component\Console\Output\BufferedOutput;
-use Symfony\Component\Console\Output\ConsoleOutput;
-use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Process\PhpExecutableFinder;
+use Symfony\Component\Console\Input\InputInterface;
+use Symfony\Component\Console\Output\ConsoleOutput;
+use Symfony\Component\Console\Output\BufferedOutput;
+use Symfony\Component\Console\Output\OutputInterface;
+use Symfony\Component\Console\Application as SymfonyApplication;
+use Symfony\Component\Console\Command\Command as SymfonyCommand;
+use Illuminate\Contracts\Console\Application as ApplicationContract;
 
 class Application extends SymfonyApplication implements ApplicationContract
 {
@@ -70,7 +65,7 @@ class Application extends SymfonyApplication implements ApplicationContract
         $this->setAutoExit(false);
         $this->setCatchExceptions(false);
 
-        $this->events->dispatch(new ArtisanStarting($this));
+        $this->events->dispatch(new Events\ArtisanStarting($this));
 
         $this->bootstrap();
     }
@@ -84,16 +79,16 @@ class Application extends SymfonyApplication implements ApplicationContract
             $input = $input ?: new ArgvInput
         );
 
-        $this->events->dispatch(
-            new CommandStarting(
+        $this->events->fire(
+            new Events\CommandStarting(
                 $commandName, $input, $output = $output ?: new ConsoleOutput
             )
         );
 
         $exitCode = parent::run($input, $output);
 
-        $this->events->dispatch(
-            new CommandFinished($commandName, $input, $output, $exitCode)
+        $this->events->fire(
+            new Events\CommandFinished($commandName, $input, $output, $exitCode)
         );
 
         return $exitCode;
@@ -168,48 +163,22 @@ class Application extends SymfonyApplication implements ApplicationContract
      *
      * @param  string  $command
      * @param  array  $parameters
-     * @param  \Symfony\Component\Console\Output\OutputInterface|null  $outputBuffer
+     * @param  \Symfony\Component\Console\Output\OutputInterface  $outputBuffer
      * @return int
-     *
-     * @throws \Symfony\Component\Console\Exception\CommandNotFoundException
      */
     public function call($command, array $parameters = [], $outputBuffer = null)
     {
-        [$command, $input] = $this->parseCommand($command, $parameters);
+        $parameters = collect($parameters)->prepend($command);
 
-        if (! $this->has($command)) {
-            throw new CommandNotFoundException(sprintf('The command "%s" does not exist.', $command));
-        }
+        $this->lastOutput = $outputBuffer ?: new BufferedOutput;
 
-        return $this->run(
-            $input, $this->lastOutput = $outputBuffer ?: new BufferedOutput
-        );
-    }
+        $this->setCatchExceptions(false);
 
-    /**
-     * Parse the incoming Artisan command and its input.
-     *
-     * @param  string  $command
-     * @param  array  $parameters
-     * @return array
-     */
-    protected function parseCommand($command, $parameters)
-    {
-        if (is_subclass_of($command, SymfonyCommand::class)) {
-            $callingClass = true;
+        $result = $this->run(new ArrayInput($parameters->toArray()), $this->lastOutput);
 
-            $command = $this->laravel->make($command)->getName();
-        }
+        $this->setCatchExceptions(true);
 
-        if (! isset($callingClass) && empty($parameters)) {
-            $command = $this->getCommandName($input = new StringInput($command));
-        } else {
-            array_unshift($parameters, $command);
-
-            $input = new ArrayInput($parameters);
-        }
-
-        return [$command, $input ?? null];
+        return $result;
     }
 
     /**
@@ -219,9 +188,7 @@ class Application extends SymfonyApplication implements ApplicationContract
      */
     public function output()
     {
-        return $this->lastOutput && method_exists($this->lastOutput, 'fetch')
-                        ? $this->lastOutput->fetch()
-                        : '';
+        return $this->lastOutput ? $this->lastOutput->fetch() : '';
     }
 
     /**
@@ -279,7 +246,7 @@ class Application extends SymfonyApplication implements ApplicationContract
     }
 
     /**
-     * Get the default input definition for the application.
+     * Get the default input definitions for the applications.
      *
      * This is used to add the --env option to every available command.
      *

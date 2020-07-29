@@ -2,18 +2,18 @@
 
 namespace Illuminate\Database;
 
+use Exception;
 use Illuminate\Support\Str;
-use Throwable;
 
 trait DetectsLostConnections
 {
     /**
      * Determine if the given exception was caused by a lost connection.
      *
-     * @param  \Throwable  $e
+     * @param  \Exception  $e
      * @return bool
      */
-    protected function causedByLostConnection(Throwable $e)
+    protected function causedByLostConnection(Exception $e)
     {
         $message = $e->getMessage();
 
@@ -34,17 +34,7 @@ trait DetectsLostConnections
             'reset by peer',
             'Physical connection is not usable',
             'TCP Provider: Error code 0x68',
-            'ORA-03114',
-            'Packets out of order. Expected',
-            'Adaptive Server connection failed',
-            'Communication link failure',
-            'connection is no longer usable',
-            'Login timeout expired',
-            'Connection refused',
-            'running with the --read-only option so it cannot execute this statement',
-            'The connection is broken and recovery is not possible. The connection is marked by the client driver as unrecoverable. No attempt was made to restore the connection.',
-            'SQLSTATE[HY000] [2002] php_network_getaddresses: getaddrinfo failed: Try again',
-            'SQLSTATE[HY000]: General error: 7 SSL SYSCALL error: EOF detected',
+            'Name or service not known',
         ]);
     }
 }

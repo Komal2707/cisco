@@ -2,17 +2,16 @@
 
 namespace Yajra\DataTables;
 
-use Illuminate\Contracts\Support\Arrayable;
-use Illuminate\Contracts\Support\Jsonable;
-use Illuminate\Http\JsonResponse;
-use Illuminate\Support\Arr;
 use Illuminate\Support\Str;
-use Illuminate\Support\Traits\Macroable;
 use Psr\Log\LoggerInterface;
-use Yajra\DataTables\Contracts\DataTable;
-use Yajra\DataTables\Exceptions\Exception;
-use Yajra\DataTables\Processors\DataProcessor;
+use Illuminate\Http\JsonResponse;
 use Yajra\DataTables\Utilities\Helper;
+use Illuminate\Support\Traits\Macroable;
+use Yajra\DataTables\Contracts\DataTable;
+use Illuminate\Contracts\Support\Jsonable;
+use Yajra\DataTables\Exceptions\Exception;
+use Illuminate\Contracts\Support\Arrayable;
+use Yajra\DataTables\Processors\DataProcessor;
 
 /**
  * @method DataTableAbstract setTransformer($transformer)
@@ -50,14 +49,12 @@ abstract class DataTableAbstract implements DataTable, Arrayable, Jsonable
      * @var array
      */
     protected $columnDef = [
-        'index'       => false,
-        'append'      => [],
-        'edit'        => [],
-        'filter'      => [],
-        'order'       => [],
-        'only'        => null,
-        'hidden'      => [],
-        'visible'     => [],
+        'index'  => false,
+        'append' => [],
+        'edit'   => [],
+        'filter' => [],
+        'order'  => [],
+        'only'   => null,
     ];
 
     /**
@@ -250,32 +247,6 @@ abstract class DataTableAbstract implements DataTable, Arrayable, Jsonable
     }
 
     /**
-     * Add a makeHidden() to the row object.
-     *
-     * @param array          $attributes
-     * @return $this
-     */
-    public function makeHidden(array $attributes = [])
-    {
-        $this->columnDef['hidden'] = array_merge_recursive(Arr::get($this->columnDef, 'hidden', []), $attributes);
-
-        return $this;
-    }
-
-    /**
-     * Add a makeVisible() to the row object.
-     *
-     * @param array          $attributes
-     * @return $this
-     */
-    public function makeVisible(array $attributes = [])
-    {
-        $this->columnDef['visible'] = array_merge_recursive(Arr::get($this->columnDef, 'visible', []), $attributes);
-
-        return $this;
-    }
-
-    /**
      * Set columns that should not be escaped.
      * Optionally merge the defaults from config.
      *
@@ -455,25 +426,12 @@ abstract class DataTableAbstract implements DataTable, Arrayable, Jsonable
     /**
      * Set smart search config at runtime.
      *
-     * @param bool $state
+     * @param bool $bool
      * @return $this
      */
-    public function smart($state = true)
+    public function smart($bool = true)
     {
-        $this->config->set('datatables.search.smart', $state);
-
-        return $this;
-    }
-
-    /**
-     * Set starts_with search config at runtime.
-     *
-     * @param bool $state
-     * @return $this
-     */
-    public function startsWithSearch($state = true)
-    {
-        $this->config->set('datatables.search.starts_with', $state);
+        $this->config->set(['datatables.search.smart' => $bool]);
 
         return $this;
     }
@@ -562,7 +520,7 @@ abstract class DataTableAbstract implements DataTable, Arrayable, Jsonable
         $config  = $this->config->get('datatables.columns');
         $allowed = ['excess', 'escape', 'raw', 'blacklist', 'whitelist'];
 
-        return array_replace_recursive(Arr::only($config, $allowed), $this->columnDef);
+        return array_replace_recursive(array_only($config, $allowed), $this->columnDef);
     }
 
     /**

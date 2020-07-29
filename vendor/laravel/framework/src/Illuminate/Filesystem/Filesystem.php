@@ -4,11 +4,9 @@ namespace Illuminate\Filesystem;
 
 use ErrorException;
 use FilesystemIterator;
-use Illuminate\Contracts\Filesystem\FileNotFoundException;
-use Illuminate\Support\Traits\Macroable;
-use RuntimeException;
 use Symfony\Component\Finder\Finder;
-use Symfony\Component\Mime\MimeTypes;
+use Illuminate\Support\Traits\Macroable;
+use Illuminate\Contracts\Filesystem\FileNotFoundException;
 
 class Filesystem
 {
@@ -26,17 +24,6 @@ class Filesystem
     }
 
     /**
-     * Determine if a file or directory is missing.
-     *
-     * @param  string  $path
-     * @return bool
-     */
-    public function missing($path)
-    {
-        return ! $this->exists($path);
-    }
-
-    /**
      * Get the contents of a file.
      *
      * @param  string  $path
@@ -51,7 +38,7 @@ class Filesystem
             return $lock ? $this->sharedGet($path) : file_get_contents($path);
         }
 
-        throw new FileNotFoundException("File does not exist at path {$path}.");
+        throw new FileNotFoundException("File does not exist at path {$path}");
     }
 
     /**
@@ -97,7 +84,7 @@ class Filesystem
             return require $path;
         }
 
-        throw new FileNotFoundException("File does not exist at path {$path}.");
+        throw new FileNotFoundException("File does not exist at path {$path}");
     }
 
     /**
@@ -128,35 +115,11 @@ class Filesystem
      * @param  string  $path
      * @param  string  $contents
      * @param  bool  $lock
-     * @return int|bool
+     * @return int
      */
     public function put($path, $contents, $lock = false)
     {
         return file_put_contents($path, $contents, $lock ? LOCK_EX : 0);
-    }
-
-    /**
-     * Write the contents of a file, replacing it atomically if it already exists.
-     *
-     * @param  string  $path
-     * @param  string  $content
-     * @return void
-     */
-    public function replace($path, $content)
-    {
-        // If the path already exists and is a symlink, get the real path...
-        clearstatcache(true, $path);
-
-        $path = realpath($path) ?: $path;
-
-        $tempPath = tempnam(dirname($path), basename($path));
-
-        // Fix permissions of tempPath because `tempnam()` creates it with permissions set to 0600...
-        chmod($tempPath, 0777 - umask());
-
-        file_put_contents($tempPath, $content);
-
-        rename($tempPath, $path);
     }
 
     /**
@@ -191,7 +154,7 @@ class Filesystem
      * Get or set UNIX mode of a file or directory.
      *
      * @param  string  $path
-     * @param  int|null  $mode
+     * @param  int  $mode
      * @return mixed
      */
     public function chmod($path, $mode = null)
@@ -253,7 +216,7 @@ class Filesystem
     }
 
     /**
-     * Create a symlink to the target file or directory. On Windows, a hard link is created if the target is a file.
+     * Create a hard link to the target file or directory.
      *
      * @param  string  $target
      * @param  string  $link
@@ -267,7 +230,7 @@ class Filesystem
 
         $mode = $this->isDirectory($target) ? 'J' : 'H';
 
-        exec("mklink /{$mode} ".escapeshellarg($link).' '.escapeshellarg($target));
+        exec("mklink /{$mode} \"{$link}\" \"{$target}\"");
     }
 
     /**
@@ -312,23 +275,6 @@ class Filesystem
     public function extension($path)
     {
         return pathinfo($path, PATHINFO_EXTENSION);
-    }
-
-    /**
-     * Guess the file extension from the mime-type of a given file.
-     *
-     * @param  string  $path
-     * @return string|null
-     */
-    public function guessExtension($path)
-    {
-        if (! class_exists(MimeTypes::class)) {
-            throw new RuntimeException(
-                'To enable support for guessing extensions, please install the symfony/mime package.'
-            );
-        }
-
-        return (new MimeTypes)->getExtensions($this->mimeType($path))[0] ?? null;
     }
 
     /**
@@ -423,7 +369,7 @@ class Filesystem
      * Find path names matching a given pattern.
      *
      * @param  string  $pattern
-     * @param  int  $flags
+     * @param  int     $flags
      * @return array
      */
     public function glob($pattern, $flags = 0)
@@ -441,7 +387,7 @@ class Filesystem
     public function files($directory, $hidden = false)
     {
         return iterator_to_array(
-            Finder::create()->files()->ignoreDotFiles(! $hidden)->in($directory)->depth(0)->sortByName(),
+            Finder::create()->files()->ignoreDotFiles(! $hidden)->in($directory)->depth(0),
             false
         );
     }
@@ -456,7 +402,7 @@ class Filesystem
     public function allFiles($directory, $hidden = false)
     {
         return iterator_to_array(
-            Finder::create()->files()->ignoreDotFiles(! $hidden)->in($directory)->sortByName(),
+            Finder::create()->files()->ignoreDotFiles(! $hidden)->in($directory),
             false
         );
     }
@@ -471,7 +417,7 @@ class Filesystem
     {
         $directories = [];
 
-        foreach (Finder::create()->in($directory)->directories()->depth(0)->sortByName() as $dir) {
+        foreach (Finder::create()->in($directory)->directories()->depth(0) as $dir) {
             $directories[] = $dir->getPathname();
         }
 
@@ -479,27 +425,12 @@ class Filesystem
     }
 
     /**
-     * Ensure a directory exists.
-     *
-     * @param  string  $path
-     * @param  int  $mode
-     * @param  bool  $recursive
-     * @return void
-     */
-    public function ensureDirectoryExists($path, $mode = 0755, $recursive = true)
-    {
-        if (! $this->isDirectory($path)) {
-            $this->makeDirectory($path, $mode, $recursive);
-        }
-    }
-
-    /**
      * Create a directory.
      *
      * @param  string  $path
-     * @param  int  $mode
-     * @param  bool  $recursive
-     * @param  bool  $force
+     * @param  int     $mode
+     * @param  bool    $recursive
+     * @param  bool    $force
      * @return bool
      */
     public function makeDirectory($path, $mode = 0755, $recursive = false, $force = false)
@@ -521,8 +452,10 @@ class Filesystem
      */
     public function moveDirectory($from, $to, $overwrite = false)
     {
-        if ($overwrite && $this->isDirectory($to) && ! $this->deleteDirectory($to)) {
-            return false;
+        if ($overwrite && $this->isDirectory($to)) {
+            if (! $this->deleteDirectory($to)) {
+                return false;
+            }
         }
 
         return @rename($from, $to) === true;
@@ -533,7 +466,7 @@ class Filesystem
      *
      * @param  string  $directory
      * @param  string  $destination
-     * @param  int|null  $options
+     * @param  int     $options
      * @return bool
      */
     public function copyDirectory($directory, $destination, $options = null)
@@ -586,7 +519,7 @@ class Filesystem
      * The directory itself may be optionally preserved.
      *
      * @param  string  $directory
-     * @param  bool  $preserve
+     * @param  bool    $preserve
      * @return bool
      */
     public function deleteDirectory($directory, $preserve = false)
@@ -618,27 +551,6 @@ class Filesystem
         }
 
         return true;
-    }
-
-    /**
-     * Remove all of the directories within a given directory.
-     *
-     * @param  string  $directory
-     * @return bool
-     */
-    public function deleteDirectories($directory)
-    {
-        $allDirectories = $this->directories($directory);
-
-        if (! empty($allDirectories)) {
-            foreach ($allDirectories as $directoryName) {
-                $this->deleteDirectory($directoryName);
-            }
-
-            return true;
-        }
-
-        return false;
     }
 
     /**

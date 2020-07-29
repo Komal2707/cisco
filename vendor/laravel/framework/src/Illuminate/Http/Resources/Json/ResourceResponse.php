@@ -2,9 +2,9 @@
 
 namespace Illuminate\Http\Resources\Json;
 
-use Illuminate\Contracts\Support\Responsable;
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Collection;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Contracts\Support\Responsable;
 
 class ResourceResponse implements Responsable
 {
@@ -42,8 +42,6 @@ class ResourceResponse implements Responsable
             ),
             $this->calculateStatus()
         ), function ($response) use ($request) {
-            $response->original = $this->resource->resource;
-
             $this->resource->withResponse($request, $response);
         });
     }

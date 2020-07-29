@@ -94,14 +94,4 @@ class Config
     {
         return $this->repository->get('datatables.search.multi_term', true);
     }
-
-    /**
-     * Check if dataTable config uses starts_with searching.
-     *
-     * @return bool
-     */
-    public function isStartsWithSearch()
-    {
-        return $this->repository->get('datatables.search.starts_with', false);
-    }
 }

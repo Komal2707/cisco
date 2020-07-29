@@ -2,11 +2,17 @@
 
 namespace Illuminate\Hashing;
 
-use Illuminate\Contracts\Support\DeferrableProvider;
 use Illuminate\Support\ServiceProvider;
 
-class HashServiceProvider extends ServiceProvider implements DeferrableProvider
+class HashServiceProvider extends ServiceProvider
 {
+    /**
+     * Indicates if loading of the provider is deferred.
+     *
+     * @var bool
+     */
+    protected $defer = true;
+
     /**
      * Register the service provider.
      *
@@ -14,12 +20,8 @@ class HashServiceProvider extends ServiceProvider implements DeferrableProvider
      */
     public function register()
     {
-        $this->app->singleton('hash', function ($app) {
-            return new HashManager($app);
-        });
-
-        $this->app->singleton('hash.driver', function ($app) {
-            return $app['hash']->driver();
+        $this->app->singleton('hash', function () {
+            return new BcryptHasher;
         });
     }
 
@@ -30,6 +32,6 @@ class HashServiceProvider extends ServiceProvider implements DeferrableProvider
      */
     public function provides()
     {
-        return ['hash', 'hash.driver'];
+        return ['hash'];
     }
 }

@@ -40,14 +40,7 @@ class HttpCache implements HttpKernelInterface, TerminableInterface
      *
      * The available options are:
      *
-     *   * debug                  If true, exceptions are thrown when things go wrong. Otherwise, the cache
-     *                            will try to carry on and deliver a meaningful response.
-     *
-     *   * trace_level            May be one of 'none', 'short' and 'full'. For 'short', a concise trace of the
-     *                            master request will be added as an HTTP header. 'full' will add traces for all
-     *                            requests (including ESI subrequests). (default: 'full' if in debug; 'none' otherwise)
-     *
-     *   * trace_header           Header name to use for traces. (default: X-Symfony-Cache)
+     *   * debug:                 If true, the traces are added as a HTTP header to ease debugging
      *
      *   * default_ttl            The number of seconds that a cache entry should be considered
      *                            fresh when no explicit freshness information is provided in
@@ -94,13 +87,7 @@ class HttpCache implements HttpKernelInterface, TerminableInterface
             'allow_revalidate' => false,
             'stale_while_revalidate' => 2,
             'stale_if_error' => 60,
-            'trace_level' => 'none',
-            'trace_header' => 'X-Symfony-Cache',
         ], $options);
-
-        if (!isset($options['trace_level'])) {
-            $this->options['trace_level'] = $this->options['debug'] ? 'full' : 'none';
-        }
     }
 
     /**
@@ -121,23 +108,6 @@ class HttpCache implements HttpKernelInterface, TerminableInterface
     public function getTraces()
     {
         return $this->traces;
-    }
-
-    private function addTraces(Response $response)
-    {
-        $traceString = null;
-
-        if ('full' === $this->options['trace_level']) {
-            $traceString = $this->getLog();
-        }
-
-        if ('short' === $this->options['trace_level'] && $masterId = array_key_first($this->traces)) {
-            $traceString = implode('/', $this->traces[$masterId]);
-        }
-
-        if (null !== $traceString) {
-            $response->headers->add([$this->options['trace_header'] => $traceString]);
-        }
     }
 
     /**
@@ -190,7 +160,7 @@ class HttpCache implements HttpKernelInterface, TerminableInterface
     /**
      * {@inheritdoc}
      */
-    public function handle(Request $request, int $type = HttpKernelInterface::MASTER_REQUEST, bool $catch = true)
+    public function handle(Request $request, $type = HttpKernelInterface::MASTER_REQUEST, $catch = true)
     {
         // FIXME: catch exceptions and implement a 500 error page here? -> in Varnish, there is a built-in error page mechanism
         if (HttpKernelInterface::MASTER_REQUEST === $type) {
@@ -207,7 +177,7 @@ class HttpCache implements HttpKernelInterface, TerminableInterface
 
         $this->traces[$this->getTraceKey($request)] = [];
 
-        if (!$request->isMethodSafe()) {
+        if (!$request->isMethodSafe(false)) {
             $response = $this->invalidate($request, $catch);
         } elseif ($request->headers->has('expect') || !$request->isMethodCacheable()) {
             $response = $this->pass($request, $catch);
@@ -224,8 +194,8 @@ class HttpCache implements HttpKernelInterface, TerminableInterface
 
         $this->restoreResponseBody($request, $response);
 
-        if (HttpKernelInterface::MASTER_REQUEST === $type) {
-            $this->addTraces($response);
+        if (HttpKernelInterface::MASTER_REQUEST === $type && $this->options['debug']) {
+            $response->headers->set('X-Symfony-Cache', $this->getLog());
         }
 
         if (null !== $this->surrogate) {
@@ -256,11 +226,12 @@ class HttpCache implements HttpKernelInterface, TerminableInterface
     /**
      * Forwards the Request to the backend without storing the Response in the cache.
      *
-     * @param bool $catch Whether to process exceptions
+     * @param Request $request A Request instance
+     * @param bool    $catch   Whether to process exceptions
      *
      * @return Response A Response instance
      */
-    protected function pass(Request $request, bool $catch = false)
+    protected function pass(Request $request, $catch = false)
     {
         $this->record($request, 'pass');
 
@@ -270,7 +241,8 @@ class HttpCache implements HttpKernelInterface, TerminableInterface
     /**
      * Invalidates non-safe methods (like POST, PUT, and DELETE).
      *
-     * @param bool $catch Whether to process exceptions
+     * @param Request $request A Request instance
+     * @param bool    $catch   Whether to process exceptions
      *
      * @return Response A Response instance
      *
@@ -278,7 +250,7 @@ class HttpCache implements HttpKernelInterface, TerminableInterface
      *
      * @see RFC2616 13.10
      */
-    protected function invalidate(Request $request, bool $catch = false)
+    protected function invalidate(Request $request, $catch = false)
     {
         $response = $this->pass($request, $catch);
 
@@ -318,13 +290,14 @@ class HttpCache implements HttpKernelInterface, TerminableInterface
      * the backend using conditional GET. When no matching cache entry is found,
      * it triggers "miss" processing.
      *
-     * @param bool $catch Whether to process exceptions
+     * @param Request $request A Request instance
+     * @param bool    $catch   Whether to process exceptions
      *
      * @return Response A Response instance
      *
      * @throws \Exception
      */
-    protected function lookup(Request $request, bool $catch = false)
+    protected function lookup(Request $request, $catch = false)
     {
         try {
             $entry = $this->store->lookup($request);
@@ -367,11 +340,13 @@ class HttpCache implements HttpKernelInterface, TerminableInterface
      * The original request is used as a template for a conditional
      * GET request with the backend.
      *
-     * @param bool $catch Whether to process exceptions
+     * @param Request  $request A Request instance
+     * @param Response $entry   A Response instance to validate
+     * @param bool     $catch   Whether to process exceptions
      *
      * @return Response A Response instance
      */
-    protected function validate(Request $request, Response $entry, bool $catch = false)
+    protected function validate(Request $request, Response $entry, $catch = false)
     {
         $subRequest = clone $request;
 
@@ -430,11 +405,12 @@ class HttpCache implements HttpKernelInterface, TerminableInterface
      * Unconditionally fetches a fresh response from the backend and
      * stores it in the cache if is cacheable.
      *
-     * @param bool $catch Whether to process exceptions
+     * @param Request $request A Request instance
+     * @param bool    $catch   Whether to process exceptions
      *
      * @return Response A Response instance
      */
-    protected function fetch(Request $request, bool $catch = false)
+    protected function fetch(Request $request, $catch = false)
     {
         $subRequest = clone $request;
 
@@ -467,7 +443,7 @@ class HttpCache implements HttpKernelInterface, TerminableInterface
      *
      * @return Response A Response instance
      */
-    protected function forward(Request $request, bool $catch = false, Response $entry = null)
+    protected function forward(Request $request, $catch = false, Response $entry = null)
     {
         if ($this->surrogate) {
             $this->surrogate->addSurrogateCapability($request);
@@ -665,8 +641,10 @@ class HttpCache implements HttpKernelInterface, TerminableInterface
     /**
      * Checks if the Request includes authorization or other sensitive information
      * that should cause the Response to be considered private by default.
+     *
+     * @return bool true if the Request is private, false otherwise
      */
-    private function isPrivateRequest(Request $request): bool
+    private function isPrivateRequest(Request $request)
     {
         foreach ($this->options['private_headers'] as $key) {
             $key = strtolower(str_replace('HTTP_', '', $key));
@@ -685,16 +663,21 @@ class HttpCache implements HttpKernelInterface, TerminableInterface
 
     /**
      * Records that an event took place.
+     *
+     * @param Request $request A Request instance
+     * @param string  $event   The event name
      */
-    private function record(Request $request, string $event)
+    private function record(Request $request, $event)
     {
         $this->traces[$this->getTraceKey($request)][] = $event;
     }
 
     /**
      * Calculates the key we use in the "trace" array for a given request.
+     *
+     * @return string
      */
-    private function getTraceKey(Request $request): string
+    private function getTraceKey(Request $request)
     {
         $path = $request->getPathInfo();
         if ($qs = $request->getQueryString()) {
@@ -707,8 +690,10 @@ class HttpCache implements HttpKernelInterface, TerminableInterface
     /**
      * Checks whether the given (cached) response may be served as "stale" when a revalidation
      * is currently in progress.
+     *
+     * @return bool true when the stale response may be served, false otherwise
      */
-    private function mayServeStaleWhileRevalidate(Response $entry): bool
+    private function mayServeStaleWhileRevalidate(Response $entry)
     {
         $timeout = $entry->headers->getCacheControlDirective('stale-while-revalidate');
 
@@ -721,8 +706,12 @@ class HttpCache implements HttpKernelInterface, TerminableInterface
 
     /**
      * Waits for the store to release a locked entry.
+     *
+     * @param Request $request The request to wait for
+     *
+     * @return bool true if the lock was released before the internal timeout was hit; false if the wait timeout was exceeded
      */
-    private function waitForLock(Request $request): bool
+    private function waitForLock(Request $request)
     {
         $wait = 0;
         while ($this->store->isLocked($request) && $wait < 100) {

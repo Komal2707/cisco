@@ -35,20 +35,7 @@ class FactoryMakeCommand extends GeneratorCommand
      */
     protected function getStub()
     {
-        return $this->resolveStubPath('/stubs/factory.stub');
-    }
-
-    /**
-     * Resolve the fully-qualified path to the stub.
-     *
-     * @param  string  $stub
-     * @return string
-     */
-    protected function resolveStubPath($stub)
-    {
-        return file_exists($customPath = $this->laravel->basePath(trim($stub, '/')))
-            ? $customPath
-            : __DIR__.$stub;
+        return __DIR__.'/stubs/factory.stub';
     }
 
     /**
@@ -59,23 +46,12 @@ class FactoryMakeCommand extends GeneratorCommand
      */
     protected function buildClass($name)
     {
-        $namespaceModel = $this->option('model')
+        $model = $this->option('model')
                         ? $this->qualifyClass($this->option('model'))
-                        : trim($this->rootNamespace(), '\\').'\\Model';
-
-        $model = class_basename($namespaceModel);
-
-        $replace = [
-            'NamespacedDummyModel' => $namespaceModel,
-            '{{ namespacedModel }}' => $namespaceModel,
-            '{{namespacedModel}}' => $namespaceModel,
-            'DummyModel' => $model,
-            '{{ model }}' => $model,
-            '{{model}}' => $model,
-        ];
+                        : 'Model';
 
         return str_replace(
-            array_keys($replace), array_values($replace), parent::buildClass($name)
+            'DummyModel', $model, parent::buildClass($name)
         );
     }
 

@@ -2,13 +2,8 @@
 
 namespace Illuminate\Routing;
 
-use Illuminate\Support\Arr;
-use Illuminate\Support\Traits\Macroable;
-
 class PendingResourceRegistration
 {
-    use Macroable;
-
     /**
      * The resource registrar.
      *
@@ -36,13 +31,6 @@ class PendingResourceRegistration
      * @var array
      */
     protected $options = [];
-
-    /**
-     * The resource's registration status.
-     *
-     * @var bool
-     */
-    protected $registered = false;
 
     /**
      * Create a new pending resource registration instance.
@@ -142,7 +130,7 @@ class PendingResourceRegistration
     }
 
     /**
-     * Add middleware to the resource routes.
+     * Set a middleware to the resource.
      *
      * @param  mixed  $middleware
      * @return \Illuminate\Routing\PendingResourceRegistration
@@ -155,56 +143,12 @@ class PendingResourceRegistration
     }
 
     /**
-     * Specify middleware that should be removed from the resource routes.
-     *
-     * @param  array|string  $middleware
-     * @return $this|array
-     */
-    public function withoutMiddleware($middleware)
-    {
-        $this->options['excluded_middleware'] = array_merge(
-            (array) ($this->options['excluded_middleware'] ?? []), Arr::wrap($middleware)
-        );
-
-        return $this;
-    }
-
-    /**
-     * Indicate that the resource routes should have "shallow" nesting.
-     *
-     * @param  bool  $shallow
-     * @return \Illuminate\Routing\PendingResourceRegistration
-     */
-    public function shallow($shallow = true)
-    {
-        $this->options['shallow'] = $shallow;
-
-        return $this;
-    }
-
-    /**
-     * Register the resource route.
-     *
-     * @return \Illuminate\Routing\RouteCollection
-     */
-    public function register()
-    {
-        $this->registered = true;
-
-        return $this->registrar->register(
-            $this->name, $this->controller, $this->options
-        );
-    }
-
-    /**
      * Handle the object's destruction.
      *
      * @return void
      */
     public function __destruct()
     {
-        if (! $this->registered) {
-            $this->register();
-        }
+        $this->registrar->register($this->name, $this->controller, $this->options);
     }
 }

@@ -3,20 +3,19 @@
 namespace Illuminate\Database\Eloquent\Relations;
 
 use Closure;
-use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Database\Eloquent\Collection;
-use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Query\Expression;
 use Illuminate\Support\Arr;
-use Illuminate\Support\Traits\ForwardsCalls;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Traits\Macroable;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Query\Expression;
+use Illuminate\Database\Eloquent\Collection;
 
 /**
  * @mixin \Illuminate\Database\Eloquent\Builder
  */
 abstract class Relation
 {
-    use ForwardsCalls, Macroable {
+    use Macroable {
         __call as macroCall;
     }
 
@@ -87,7 +86,7 @@ abstract class Relation
         // off of the bindings, leaving only the constraints that the developers put
         // as "extra" on the relationships, and not original relation constraints.
         try {
-            return $callback();
+            return call_user_func($callback);
         } finally {
             static::$constraints = $previous;
         }
@@ -111,7 +110,7 @@ abstract class Relation
     /**
      * Initialize the relation on a set of models.
      *
-     * @param  array  $models
+     * @param  array   $models
      * @param  string  $relation
      * @return array
      */
@@ -120,7 +119,7 @@ abstract class Relation
     /**
      * Match the eagerly loaded results to their parents.
      *
-     * @param  array  $models
+     * @param  array   $models
      * @param  \Illuminate\Database\Eloquent\Collection  $results
      * @param  string  $relation
      * @return array
@@ -162,13 +161,9 @@ abstract class Relation
      */
     public function touch()
     {
-        $model = $this->getRelated();
+        $column = $this->getRelated()->getUpdatedAtColumn();
 
-        if (! $model::isIgnoringTouch()) {
-            $this->rawUpdate([
-                $model->getUpdatedAtColumn() => $model->freshTimestampString(),
-            ]);
-        }
+        $this->rawUpdate([$column => $this->getRelated()->freshTimestampString()]);
     }
 
     /**
@@ -203,7 +198,7 @@ abstract class Relation
      *
      * @param  \Illuminate\Database\Eloquent\Builder  $query
      * @param  \Illuminate\Database\Eloquent\Builder  $parentQuery
-     * @param  array|mixed  $columns
+     * @param  array|mixed $columns
      * @return \Illuminate\Database\Eloquent\Builder
      */
     public function getRelationExistenceQuery(Builder $query, Builder $parentQuery, $columns = ['*'])
@@ -216,15 +211,15 @@ abstract class Relation
     /**
      * Get all of the primary keys for an array of models.
      *
-     * @param  array  $models
-     * @param  string|null  $key
+     * @param  array   $models
+     * @param  string  $key
      * @return array
      */
     protected function getKeys(array $models, $key = null)
     {
         return collect($models)->map(function ($value) use ($key) {
             return $key ? $value->getAttribute($key) : $value->getKey();
-        })->values()->unique(null, true)->sort()->all();
+        })->values()->unique()->sort()->all();
     }
 
     /**
@@ -308,21 +303,6 @@ abstract class Relation
     }
 
     /**
-     * Get the name of the "where in" method for eager loading.
-     *
-     * @param  \Illuminate\Database\Eloquent\Model  $model
-     * @param  string  $key
-     * @return string
-     */
-    protected function whereInMethod(Model $model, $key)
-    {
-        return $model->getKeyName() === last(explode('.', $key))
-                    && in_array($model->getKeyType(), ['int', 'integer'])
-                        ? 'whereIntegerInRaw'
-                        : 'whereIn';
-    }
-
-    /**
      * Set or get the morph map for polymorphic relations.
      *
      * @param  array|null  $map
@@ -366,14 +346,16 @@ abstract class Relation
      */
     public static function getMorphedModel($alias)
     {
-        return static::$morphMap[$alias] ?? null;
+        return array_key_exists($alias, self::$morphMap)
+                        ? self::$morphMap[$alias]
+                        : null;
     }
 
     /**
      * Handle dynamic method calls to the relationship.
      *
      * @param  string  $method
-     * @param  array  $parameters
+     * @param  array   $parameters
      * @return mixed
      */
     public function __call($method, $parameters)
@@ -382,7 +364,7 @@ abstract class Relation
             return $this->macroCall($method, $parameters);
         }
 
-        $result = $this->forwardCallTo($this->query, $method, $parameters);
+        $result = $this->query->{$method}(...$parameters);
 
         if ($result === $this->query) {
             return $this;

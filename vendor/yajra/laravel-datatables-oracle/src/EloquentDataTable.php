@@ -3,12 +3,11 @@
 namespace Yajra\DataTables;
 
 use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Database\Eloquent\Relations\BelongsToMany;
-use Illuminate\Database\Eloquent\Relations\HasOneOrMany;
-use Illuminate\Database\Eloquent\Relations\HasOneThrough;
-use Illuminate\Database\Eloquent\Relations\Relation;
 use Yajra\DataTables\Exceptions\Exception;
+use Illuminate\Database\Eloquent\Relations\Relation;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasOneOrMany;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 
 class EloquentDataTable extends QueryDataTable
 {
@@ -160,20 +159,6 @@ class EloquentDataTable extends QueryDataTable
 
                     break;
 
-                case $model instanceof HasOneThrough:
-                    $pivot    = explode('.', $model->getQualifiedParentKeyName())[0]; // extract pivot table from key
-                    $pivotPK  = $pivot . '.' . $model->getLocalKeyName();
-                    $pivotFK  = $model->getQualifiedLocalKeyName();
-                    $this->performJoin($pivot, $pivotPK, $pivotFK);
-
-                    $related = $model->getRelated();
-                    $table   = $related->getTable();
-                    $tablePK = $related->getForeignKey();
-                    $foreign = $pivot . '.' . $tablePK;
-                    $other   = $related->getQualifiedKeyName();
-
-                    break;
-
                 case $model instanceof HasOneOrMany:
                     $table     = $model->getRelated()->getTable();
                     $foreign   = $model->getQualifiedForeignKeyName();
@@ -182,7 +167,7 @@ class EloquentDataTable extends QueryDataTable
 
                 case $model instanceof BelongsTo:
                     $table     = $model->getRelated()->getTable();
-                    $foreign   = $model->getQualifiedForeignKeyName();
+                    $foreign   = $model->getQualifiedForeignKey();
                     $other     = $model->getQualifiedOwnerKeyName();
                     break;
 

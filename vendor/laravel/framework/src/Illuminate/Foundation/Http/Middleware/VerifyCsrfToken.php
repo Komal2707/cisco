@@ -3,13 +3,12 @@
 namespace Illuminate\Foundation\Http\Middleware;
 
 use Closure;
-use Illuminate\Contracts\Encryption\Encrypter;
-use Illuminate\Contracts\Foundation\Application;
-use Illuminate\Contracts\Support\Responsable;
-use Illuminate\Cookie\Middleware\EncryptCookies;
-use Illuminate\Session\TokenMismatchException;
+use Illuminate\Foundation\Application;
 use Illuminate\Support\InteractsWithTime;
 use Symfony\Component\HttpFoundation\Cookie;
+use Illuminate\Contracts\Encryption\Encrypter;
+use Illuminate\Session\TokenMismatchException;
+use Illuminate\Cookie\Middleware\EncryptCookies;
 
 class VerifyCsrfToken
 {
@@ -18,7 +17,7 @@ class VerifyCsrfToken
     /**
      * The application instance.
      *
-     * @var \Illuminate\Contracts\Foundation\Application
+     * @var \Illuminate\Foundation\Application
      */
     protected $app;
 
@@ -37,16 +36,9 @@ class VerifyCsrfToken
     protected $except = [];
 
     /**
-     * Indicates whether the XSRF-TOKEN cookie should be set on the response.
-     *
-     * @var bool
-     */
-    protected $addHttpCookie = true;
-
-    /**
      * Create a new middleware instance.
      *
-     * @param  \Illuminate\Contracts\Foundation\Application  $app
+     * @param  \Illuminate\Foundation\Application  $app
      * @param  \Illuminate\Contracts\Encryption\Encrypter  $encrypter
      * @return void
      */
@@ -73,14 +65,10 @@ class VerifyCsrfToken
             $this->inExceptArray($request) ||
             $this->tokensMatch($request)
         ) {
-            return tap($next($request), function ($response) use ($request) {
-                if ($this->shouldAddXsrfTokenCookie()) {
-                    $this->addCookieToResponse($request, $response);
-                }
-            });
+            return $this->addCookieToResponse($request, $next($request));
         }
 
-        throw new TokenMismatchException('CSRF token mismatch.');
+        throw new TokenMismatchException;
     }
 
     /**
@@ -158,16 +146,6 @@ class VerifyCsrfToken
     }
 
     /**
-     * Determine if the cookie should be added to the response.
-     *
-     * @return bool
-     */
-    public function shouldAddXsrfTokenCookie()
-    {
-        return $this->addHttpCookie;
-    }
-
-    /**
      * Add the CSRF token to the response cookies.
      *
      * @param  \Illuminate\Http\Request  $request
@@ -177,10 +155,6 @@ class VerifyCsrfToken
     protected function addCookieToResponse($request, $response)
     {
         $config = config('session');
-
-        if ($response instanceof Responsable) {
-            $response = $response->toResponse($request);
-        }
 
         $response->headers->setCookie(
             new Cookie(

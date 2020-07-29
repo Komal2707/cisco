@@ -44,7 +44,7 @@ class BinaryFileResponse extends Response
      * @param bool                $autoEtag           Whether the ETag header should be automatically set
      * @param bool                $autoLastModified   Whether the Last-Modified header should be automatically set
      */
-    public function __construct($file, int $status = 200, array $headers = [], bool $public = true, string $contentDisposition = null, bool $autoEtag = false, bool $autoLastModified = true)
+    public function __construct($file, $status = 200, $headers = [], $public = true, $contentDisposition = null, $autoEtag = false, $autoLastModified = true)
     {
         parent::__construct(null, $status, $headers);
 
@@ -66,7 +66,7 @@ class BinaryFileResponse extends Response
      *
      * @return static
      */
-    public static function create($file = null, int $status = 200, array $headers = [], bool $public = true, string $contentDisposition = null, bool $autoEtag = false, bool $autoLastModified = true)
+    public static function create($file = null, $status = 200, $headers = [], $public = true, $contentDisposition = null, $autoEtag = false, $autoLastModified = true)
     {
         return new static($file, $status, $headers, $public, $contentDisposition, $autoEtag, $autoLastModified);
     }
@@ -74,13 +74,16 @@ class BinaryFileResponse extends Response
     /**
      * Sets the file to stream.
      *
-     * @param \SplFileInfo|string $file The file to stream
+     * @param \SplFileInfo|string $file               The file to stream
+     * @param string              $contentDisposition
+     * @param bool                $autoEtag
+     * @param bool                $autoLastModified
      *
      * @return $this
      *
      * @throws FileException
      */
-    public function setFile($file, string $contentDisposition = null, bool $autoEtag = false, bool $autoLastModified = true)
+    public function setFile($file, $contentDisposition = null, $autoEtag = false, $autoLastModified = true)
     {
         if (!$file instanceof File) {
             if ($file instanceof \SplFileInfo) {
@@ -150,7 +153,7 @@ class BinaryFileResponse extends Response
      *
      * @return $this
      */
-    public function setContentDisposition(string $disposition, string $filename = '', string $filenameFallback = '')
+    public function setContentDisposition($disposition, $filename = '', $filenameFallback = '')
     {
         if ('' === $filename) {
             $filename = $this->file->getFilename();
@@ -201,7 +204,7 @@ class BinaryFileResponse extends Response
 
         if (!$this->headers->has('Accept-Ranges')) {
             // Only accept ranges on safe HTTP methods
-            $this->headers->set('Accept-Ranges', $request->isMethodSafe() ? 'bytes' : 'none');
+            $this->headers->set('Accept-Ranges', $request->isMethodSafe(false) ? 'bytes' : 'none');
         }
 
         if (self::$trustXSendfileTypeHeader && $request->headers->has('X-Sendfile-Type')) {
@@ -215,16 +218,21 @@ class BinaryFileResponse extends Response
             if ('x-accel-redirect' === strtolower($type)) {
                 // Do X-Accel-Mapping substitutions.
                 // @link https://www.nginx.com/resources/wiki/start/topics/examples/x-accel/#x-accel-redirect
-                $parts = HeaderUtils::split($request->headers->get('X-Accel-Mapping', ''), ',=');
-                foreach ($parts as $part) {
-                    list($pathPrefix, $location) = $part;
-                    if (substr($path, 0, \strlen($pathPrefix)) === $pathPrefix) {
-                        $path = $location.substr($path, \strlen($pathPrefix));
-                        // Only set X-Accel-Redirect header if a valid URI can be produced
-                        // as nginx does not serve arbitrary file paths.
-                        $this->headers->set($type, $path);
-                        $this->maxlen = 0;
-                        break;
+                foreach (explode(',', $request->headers->get('X-Accel-Mapping', '')) as $mapping) {
+                    $mapping = explode('=', $mapping, 2);
+
+                    if (2 === \count($mapping)) {
+                        $pathPrefix = trim($mapping[0]);
+                        $location = trim($mapping[1]);
+
+                        if (substr($path, 0, \strlen($pathPrefix)) === $pathPrefix) {
+                            $path = $location.substr($path, \strlen($pathPrefix));
+                            // Only set X-Accel-Redirect header if a valid URI can be produced
+                            // as nginx does not serve arbitrary file paths.
+                            $this->headers->set($type, $path);
+                            $this->maxlen = 0;
+                            break;
+                        }
                     }
                 }
             } else {
@@ -266,7 +274,7 @@ class BinaryFileResponse extends Response
         return $this;
     }
 
-    private function hasValidIfRangeHeader(?string $header): bool
+    private function hasValidIfRangeHeader($header)
     {
         if ($this->getEtag() === $header) {
             return true;
@@ -314,7 +322,7 @@ class BinaryFileResponse extends Response
      *
      * @throws \LogicException when the content is not null
      */
-    public function setContent(?string $content)
+    public function setContent($content)
     {
         if (null !== $content) {
             throw new \LogicException('The content cannot be set on a BinaryFileResponse instance.');
@@ -343,9 +351,11 @@ class BinaryFileResponse extends Response
      * If this is set to true, the file will be unlinked after the request is sent
      * Note: If the X-Sendfile header is used, the deleteFileAfterSend setting will not be used.
      *
+     * @param bool $shouldDelete
+     *
      * @return $this
      */
-    public function deleteFileAfterSend(bool $shouldDelete = true)
+    public function deleteFileAfterSend($shouldDelete)
     {
         $this->deleteFileAfterSend = $shouldDelete;
 

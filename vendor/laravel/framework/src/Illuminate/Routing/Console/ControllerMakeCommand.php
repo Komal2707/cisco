@@ -2,9 +2,9 @@
 
 namespace Illuminate\Routing\Console;
 
-use Illuminate\Console\GeneratorCommand;
 use Illuminate\Support\Str;
 use InvalidArgumentException;
+use Illuminate\Console\GeneratorCommand;
 use Symfony\Component\Console\Input\InputOption;
 
 class ControllerMakeCommand extends GeneratorCommand
@@ -37,40 +37,15 @@ class ControllerMakeCommand extends GeneratorCommand
      */
     protected function getStub()
     {
-        $stub = null;
-
         if ($this->option('parent')) {
-            $stub = '/stubs/controller.nested.stub';
+            return __DIR__.'/stubs/controller.nested.stub';
         } elseif ($this->option('model')) {
-            $stub = '/stubs/controller.model.stub';
-        } elseif ($this->option('invokable')) {
-            $stub = '/stubs/controller.invokable.stub';
+            return __DIR__.'/stubs/controller.model.stub';
         } elseif ($this->option('resource')) {
-            $stub = '/stubs/controller.stub';
+            return __DIR__.'/stubs/controller.stub';
         }
 
-        if ($this->option('api') && is_null($stub)) {
-            $stub = '/stubs/controller.api.stub';
-        } elseif ($this->option('api') && ! is_null($stub) && ! $this->option('invokable')) {
-            $stub = str_replace('.stub', '.api.stub', $stub);
-        }
-
-        $stub = $stub ?? '/stubs/controller.plain.stub';
-
-        return $this->resolveStubPath($stub);
-    }
-
-    /**
-     * Resolve the fully-qualified path to the stub.
-     *
-     * @param  string  $stub
-     * @return string
-     */
-    protected function resolveStubPath($stub)
-    {
-        return file_exists($customPath = $this->laravel->basePath(trim($stub, '/')))
-                        ? $customPath
-                        : __DIR__.$stub;
+        return __DIR__.'/stubs/controller.plain.stub';
     }
 
     /**
@@ -130,14 +105,8 @@ class ControllerMakeCommand extends GeneratorCommand
 
         return [
             'ParentDummyFullModelClass' => $parentModelClass,
-            '{{ namespacedParentModel }}' => $parentModelClass,
-            '{{namespacedParentModel}}' => $parentModelClass,
             'ParentDummyModelClass' => class_basename($parentModelClass),
-            '{{ parentModel }}' => class_basename($parentModelClass),
-            '{{parentModel}}' => class_basename($parentModelClass),
             'ParentDummyModelVariable' => lcfirst(class_basename($parentModelClass)),
-            '{{ parentModelVariable }}' => lcfirst(class_basename($parentModelClass)),
-            '{{parentModelVariable}}' => lcfirst(class_basename($parentModelClass)),
         ];
     }
 
@@ -159,14 +128,8 @@ class ControllerMakeCommand extends GeneratorCommand
 
         return array_merge($replace, [
             'DummyFullModelClass' => $modelClass,
-            '{{ namespacedModel }}' => $modelClass,
-            '{{namespacedModel}}' => $modelClass,
             'DummyModelClass' => class_basename($modelClass),
-            '{{ model }}' => class_basename($modelClass),
-            '{{model}}' => class_basename($modelClass),
             'DummyModelVariable' => lcfirst(class_basename($modelClass)),
-            '{{ modelVariable }}' => lcfirst(class_basename($modelClass)),
-            '{{modelVariable}}' => lcfirst(class_basename($modelClass)),
         ]);
     }
 
@@ -175,8 +138,6 @@ class ControllerMakeCommand extends GeneratorCommand
      *
      * @param  string  $model
      * @return string
-     *
-     * @throws \InvalidArgumentException
      */
     protected function parseModel($model)
     {
@@ -201,12 +162,11 @@ class ControllerMakeCommand extends GeneratorCommand
     protected function getOptions()
     {
         return [
-            ['api', null, InputOption::VALUE_NONE, 'Exclude the create and edit methods from the controller.'],
-            ['force', null, InputOption::VALUE_NONE, 'Create the class even if the controller already exists'],
-            ['invokable', 'i', InputOption::VALUE_NONE, 'Generate a single method, invokable controller class.'],
             ['model', 'm', InputOption::VALUE_OPTIONAL, 'Generate a resource controller for the given model.'],
-            ['parent', 'p', InputOption::VALUE_OPTIONAL, 'Generate a nested resource controller class.'],
+
             ['resource', 'r', InputOption::VALUE_NONE, 'Generate a resource controller class.'],
+
+            ['parent', 'p', InputOption::VALUE_OPTIONAL, 'Generate a nested resource controller class.'],
         ];
     }
 }
